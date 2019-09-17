@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <iomanip>
+#include <memory>
 
 using namespace std;
 
@@ -14,7 +15,7 @@ struct Waypoint {
 };
 
 // A utility function to find the vertex index with minimum time value 
-int minTimeIndex(float time[], bool haveSeen[], const vector<Waypoint>& waypoints, int vertices) {
+int minTimeIndex(shared_ptr<float[]> time, shared_ptr<bool[]> haveSeen, const vector<Waypoint>& waypoints, int vertices) {
 	// Initialize min value 
 	int minIndex = 0;
 	int minTimeIndex, updatedMinTimeIndex;
@@ -41,12 +42,16 @@ int minTimeIndex(float time[], bool haveSeen[], const vector<Waypoint>& waypoint
 // for a graph
 float dijkstra(const vector<Waypoint>& waypoints, int vertices) {
 	float minTimeForEachVertex;
-	float* time = new float[vertices]; // dynamically allocated array to store shortese  
-									   // time for each vertex because number of vertices
-									   // are changable
-	bool* haveSeen = new bool[vertices]; // True if vertex is included in shortest time 
-										 // tree or shortest time from start point to 
-										 // vertex is finalized
+	shared_ptr<float[]> time(new float[vertices]); // dynamically allocated array to store shortese  
+									               // time for each vertex because number of vertices
+									               // are changable
+	
+	// std::make_shared doesn't work with raw array, code below errored out
+	// shared_ptr<float[]> time = make_shared<float[]>(vertices);
+	
+	shared_ptr<bool[]> haveSeen(new bool[vertices]); // True if vertex is included in shortest time 
+										             // tree or shortest time from start point to 
+										             // vertex is finalized
 
 	// Initialize haveSeen[] as false because we have not traversed any node yet
 	for (int vertex = 0; vertex < vertices; vertex++) {
@@ -110,59 +115,46 @@ float dijkstra(const vector<Waypoint>& waypoints, int vertices) {
 	cout << fixed << setprecision(3);
 	// return the shortest time reaching to end point
 	return time[vertices - 1];
-	// release memory
-	delete[] time;
-	delete[] haveSeen;
 }
 
 int main() {
 
-	int numberOfWaypoints = 1;
+	int numberOfWaypoints;
 	int numberOfWaypointsInnerLoop; // used to loop through different waypoint data set
 	int vertices, xCoord, yCoord, penalty;
 
-	vector<Waypoint> waypoints;
 	vector<float> output;
 
-	while (numberOfWaypoints != 0) {
+	while (true) {
+
+		typedef vector<Waypoint> VectorofWaypoint;
+		unique_ptr<VectorofWaypoint> waypoints = make_unique<VectorofWaypoint>();
+
 		cin >> numberOfWaypoints;
 		if (numberOfWaypoints <= 1000 && numberOfWaypoints >= 1) {
 			numberOfWaypointsInnerLoop = numberOfWaypoints;
 			vertices = numberOfWaypoints + 2;
-			waypoints.emplace_back(0, 0, 0); // Start Point
+			waypoints->emplace_back(0, 0, 0); // Start Point
 
 			while (numberOfWaypointsInnerLoop > 0) {
 				// User type in data of all waypoints
 				// a while loop is utilized to catch variables typed in out of range
 				while (true) {
 					cin >> xCoord >> yCoord >> penalty;
-					if (xCoord >= 1 && xCoord <= 99) {
-						if (yCoord >= 1 && yCoord <= 99) {
-							if (penalty >= 1 && penalty <= 100) {
-								waypoints.emplace_back(xCoord, yCoord, penalty);
-								break;
-							}
-							else {
-								cout << "Penalty value is out of range (1 to 100), please re-enter it" << endl;
-							}
-						}
-						else {
-							cout << "Y coordinate is out of range (1 to 99), please re-enter it" << endl;
-						}
-					}
-					else {
-						cout << "X coordinate is out of range (1 to 99), please re-enter it" << endl;
-					}
+					if (xCoord < 1 || xCoord > 99 || yCoord < 1 || yCoord > 99 || penalty < 1 || penalty > 100) {
+						cout << "Values typed in are out of range, please re-enter them. Note: X or Y coordinate"
+							" should be in [1, 99] and Penalty value be in [1, 100]." << endl;
+					} else {
+						break;
+					}			
 				}
+				waypoints->emplace_back(xCoord, yCoord, penalty);
 				numberOfWaypointsInnerLoop--;
 			}
-			waypoints.emplace_back(100, 100, 10); // End Point
-			output.emplace_back(dijkstra(waypoints, vertices));
-			// Clear all elements in waypoints vector
-			waypoints.clear();
-		}
-		else if (numberOfWaypoints == 0) {
-			// do not print out message "Please re-enter ..." when we want to exit
+			waypoints->emplace_back(100, 100, 10); // End Point
+			output.emplace_back(dijkstra(*waypoints, vertices));
+		} else if (numberOfWaypoints == 0) {
+			break;
 		}
 		else {
 			cout << "Please re-enter number of waypoints. (it should be from 1 to 1000)" << endl;
@@ -173,6 +165,7 @@ int main() {
 	for (vector<float>::iterator it = output.begin(); it != output.end(); it++) {
 		cout << *it << endl;
 	}
+	cin.ignore();
 	cin.get();
 	return 0;
 }
